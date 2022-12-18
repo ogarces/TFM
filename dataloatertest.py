@@ -23,8 +23,10 @@ from mmseg.utils import get_root_logger
 from mmseg.datasets import DATASETS
 from mmseg.datasets import CustomDataset
 
-
 import numpy as np
+
+
+
 
 # class ImageDatasetP(CustomDataset):
 #     def __init__(self, pipeline, data_root, split, file_client_args=dict(backend='disk')):
@@ -203,11 +205,10 @@ class Mydataset1(CustomDataset):
 
 
 
-    def __init__(self, pipeline, img_dir, ann_dir, filename_list, filename_list_labs, split):
+    def __init__(self, pipeline, img_dir, ann_dir, split):
         
 
-        self.files = filename_list
-        self.labs = filename_list_labs
+
         self.split = split
         self.pipeline = pipeline
         self.img_dir = img_dir
@@ -248,8 +249,8 @@ class Mydataset1(CustomDataset):
 
  
     def __getitem__(self, index):
-        self.load_annotations(img_dir=img_dir, img_suffix='png', seg_map_suffix='png',  
-                              ann_dir=ann_dir, split=None,)
+        # self.load_annotations(img_dir=img_dir, img_suffix='png', seg_map_suffix='png',  
+        #                       ann_dir=ann_dir, split=None,)
     
         
         if 'train' in img_dir:
@@ -260,6 +261,7 @@ class Mydataset1(CustomDataset):
                 
                         
             one_hot = torch.nn.functional.one_hot(torch.Tensor(mask).long(), num_classes=6)
+            print(one_hot.shape)
             # if np.min(lab_hr) == 2:
             #     print( 'min', np.min(lab_hr), 'max', np.max(lab_hr), 'uniq', np.unique(lab_hr), 'one hot', one_hot)
             #print('ONE HOT SIZE', one_hot, one_hot.shape)
@@ -291,20 +293,20 @@ data_root = '/share/ogarces/PRANC/mmsegmentation/data/potsdam'
 
 
 
-IMG_TRAIN_PATH = '/share/ogarces/PRANC/mmsegmentation/data/potsdam/img_dir/train'
-IMG_TEST_PATH = '/share/ogarces/PRANC/mmsegmentation/data/potsdam/img_dir/val'
+# IMG_TRAIN_PATH = '/share/ogarces/PRANC/mmsegmentation/data/potsdam/img_dir/train'
+# IMG_TEST_PATH = '/share/ogarces/PRANC/mmsegmentation/data/potsdam/img_dir/val'
 
 
-LAB_TRAIN_PATH = '/share/ogarces/PRANC/mmsegmentation/data/potsdam/ann_dir/train'
-LAB_TEST_PATH = '/share/ogarces/PRANC/mmsegmentation/data/potsdam/ann_dir/val'
+# LAB_TRAIN_PATH = '/share/ogarces/PRANC/mmsegmentation/data/potsdam/ann_dir/train'
+# LAB_TEST_PATH = '/share/ogarces/PRANC/mmsegmentation/data/potsdam/ann_dir/val'
 
-train_filenames = [os.path.join(IMG_TRAIN_PATH, o) for o in os.listdir(IMG_TRAIN_PATH)]
-train_masks = [os.path.join(LAB_TRAIN_PATH, o) for o in os.listdir(LAB_TRAIN_PATH)]
-test_filenames = [os.path.join(IMG_TEST_PATH, o) for o in os.listdir(IMG_TEST_PATH)]
-test_masks = [os.path.join(LAB_TEST_PATH, o) for o in os.listdir(LAB_TEST_PATH)]
+# train_filenames = [os.path.join(IMG_TRAIN_PATH, o) for o in os.listdir(IMG_TRAIN_PATH)]
+# train_masks = [os.path.join(LAB_TRAIN_PATH, o) for o in os.listdir(LAB_TRAIN_PATH)]
+# test_filenames = [os.path.join(IMG_TEST_PATH, o) for o in os.listdir(IMG_TEST_PATH)]
+# test_masks = [os.path.join(LAB_TEST_PATH, o) for o in os.listdir(LAB_TEST_PATH)]
 
 
-trainset = Mydataset1(pipeline = train_pipeline, img_dir=img_dir, ann_dir=ann_dir, filename_list=train_filenames, filename_list_labs=train_masks, split=None)    
+trainset = Mydataset1(pipeline = train_pipeline, img_dir=img_dir, ann_dir=ann_dir,  split=None)    
 # trainset.load_annotations(img_dir=img_dir, img_suffix='png', seg_map_suffix='png',  ann_dir=ann_dir,
   
 #                         split=None,)
@@ -314,7 +316,8 @@ trainset = Mydataset1(pipeline = train_pipeline, img_dir=img_dir, ann_dir=ann_di
 trainloader = torch.utils.data.DataLoader(trainset,  batch_size=12,  shuffle=False,
                                                 drop_last = True, num_workers=2)
  
-    
+ 
+print(type(trainset))   
 # valset =  Mydataset(pipeline = val_pipeline, img_dir=img_dirv, ann_dir=ann_dirv,) 
 # for i, j in enumerate(trainloader):
 #     print(j)
@@ -328,3 +331,49 @@ for i in trainset:
 # print(type(trainloader))
 # # print(type(CustomDataset))
 # print(trainset)
+
+
+bset = CustomDataset(pipeline = train_pipeline, img_dir=img_dir, ann_dir=ann_dir, img_suffix='.png', )
+bset.load_annotations(img_dir=img_dir, img_suffix='.png', ann_dir=ann_dir, seg_map_suffix='png', split=None)
+bset.CLASSES =     CLASSES = ('impervious_surface', 'building', 'low_vegetation', 'tree',
+               'car', 'clutter')
+
+bset.PALETTE =  [[255, 255, 255], [0, 0, 255], [0, 255, 255], [0, 255, 0],
+               [255, 255, 0], [255, 0, 0]]
+print(type(bset))
+print(bset.CLASSES)
+
+bset.reduce_zero_label=True
+print(bset.get_classes_and_palette())
+
+
+
+
+
+
+
+class PotsdamDataset(CustomDataset):
+    """ISPRS Potsdam dataset.
+
+    In segmentation map annotation for Potsdam dataset, 0 is the ignore index.
+    ``reduce_zero_label`` should be set to True. The ``img_suffix`` and
+    ``seg_map_suffix`` are both fixed to '.png'.
+    """
+    CLASSES = ('impervious_surface', 'building', 'low_vegetation', 'tree',
+               'car', 'clutter')
+
+    PALETTE = [[255, 255, 255], [0, 0, 255], [0, 255, 255], [0, 255, 0],
+               [255, 255, 0], [255, 0, 0]]
+
+    def __init__(self, **kwargs):
+        super(PotsdamDataset, self).__init__(
+            img_suffix='.png',
+            seg_map_suffix='.png',
+            reduce_zero_label=True,
+            **kwargs)
+        
+bset = PotsdamDataset(pipeline = train_pipeline, img_dir=img_dir, ann_dir=ann_dir,  split=None)
+
+# bset.load_annotations(img_dir=img_dir, img_suffix='.png', ann_dir=ann_dir, seg_map_suffix='png', split=None)
+
+print(type(bset))
