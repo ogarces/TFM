@@ -1,0 +1,38 @@
+name: "SEGMENT_lraspp_ISAID_PRANC"
+id: "SEGMENT_lraspp_ISAID_PRANC"
+gpus: [0,1,2, 3, 4, 5]
+port: 8600
+
+pranc:
+  seed: 0 
+  num_alpha: 6000
+
+experiment:
+  mode: 'train'   #[train, test]
+  method: 'pranc'   #[normal, pranc, pranc_bin]
+  loss: "focal"   #[cross-entropy, mse] focal
+  lr: 0.001
+  optimizer: 'sgd'  #[sgd, adam]
+  momentum: 0.9 #momentum for sgd
+  weight_decay: 0.0005 #weight decay for sgd
+  scheduler: 'step' #[none, step, exponential]
+  gamma: 0.5 #gamma for exponential and step scheduler 
+  step: 5  #step for step scheduler
+  epoch: 20
+
+  batch_size: 10   #optional for testing
+  # resume: 'R18_IMAGENET/pranc'  #for resuming pranc training. 
+  # resume: '<TASK_ID>/best_model.pt'  #for resuming normal training. 
+  # load_model: '<TASK_ID>/pranc' #for pranc testingpip
+  load_model: 'SEGMENT_lraspp_ISAID_PRANC/best_modelPRANC.pt' #for normal testing 
+  task: 'iSAID' #[mnist, cifar10, cifar100, tiny, imagenet]
+  model_arch: 'lraspp' #'segmentationresnet' #'deeplabv3'  #[lenet, resnet18, resnet20, resnet56, alexnet, convnet]
+
+dataset:
+  image_width: 512 # set 28 for mnist, 32 for cifar, 64 tiny, 256 for imagenet
+  dataset_path: './mmsegmentation/data/potsdam'    #path to the dataset
+
+monitor:  #optional for testing
+  log_rate: 50
+  save_model: 'best_modelPRANC.pt'    #if touch, modify resume and load_model
+  save_path: 'pranc'      #if touch, modify resume and load_model
