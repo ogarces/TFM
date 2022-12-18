@@ -11,7 +11,7 @@
             "program": "./launcher.py",
             "console": "integratedTerminal",
             "justMyCode": true, 
-            "args": ["/share/ogarces/PRANC/configs/prancTrain.yaml"]
+            "args": ["/share/ogarces/PRANC/configs/SEGMENT_deeplabBASELINE_POTS_NORM.yaml"]
         }
     ]
 }

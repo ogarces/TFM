@@ -50,7 +50,7 @@ import PIL
 # writer = SummaryWriter("write14/focal/ii")
 # writer = SummaryWriter("write14/focal/iiwei")
 
-writer = SummaryWriter("write14/focal/C7/ExclM")
+writer = SummaryWriter("write14/focal/C6/ExclM")
 # writer = SummaryWriter("write14/focal/C7/Inc")
 # no writer = SummaryWriter("write14/focal/C6/Excl")
 # writer = SummaryWriter("write14/focal/C6/Inc")
@@ -157,7 +157,7 @@ def loss_func(args):
     if args.loss == 'cross-entropy':
         return nn.CrossEntropyLoss()
     if args.loss == 'focal':
-        return smp.losses.FocalLoss('multiclass', ignore_index=-1)
+        return smp.losses.FocalLoss('multiclass', ignore_index=1)
     if args.loss == 'dice':
         return smp.losses.DiceLoss('multiclass', ignore_index=0)
         #return L.FocalLoss("multiclass")
@@ -834,12 +834,12 @@ def test(gpu_ind, args, train_net, testloader, criteria, e):
             writer.close()
             
             ls = torch.unsqueeze(labels, dim=1)
-            ls3 = ls.expand(ls.shape[0],3, *ls.shape[2:])*20
+            ls3 = ls.expand(ls.shape[0],3, *ls.shape[2:])**3
             # print(ls.shape, ls3.shape, labels.shape)
             
             ous = torch.unsqueeze(torch.argmax(outputs, dim=1), dim=1)
-            ous3 = ous.expand(ous.shape[0],3, *ous.shape[2:])*20
-            print('line 840', ous3[0,:, 0, 0])
+            ous3 = ous.expand(ous.shape[0],3, *ous.shape[2:])**3
+            # print('line 840', ous3[0,:, 0, 0])
             
 
 
@@ -858,7 +858,7 @@ def test(gpu_ind, args, train_net, testloader, criteria, e):
             #         data[:,:3,:,:][mask] = [r2, g2, b2]
             
             
-            print(ous3[:,1,:,:], ous3[:,2,:,:], ous3[:,0,:,:])
+            # print(ous3[:,1,:,:], ous3[:,2,:,:], ous3[:,0,:,:])
             # ls3[:,1,:,:] = ls3[:,1,:,:]*5
             # ls3[:,0,:,:] = ls3[:,0,:,:]
             # ls3[:,2,:,:] = ls3[:,2,:,:]*2
@@ -878,7 +878,7 @@ def test(gpu_ind, args, train_net, testloader, criteria, e):
             img_gridinlab = torchvision.utils.make_grid(ls3)
             writer.add_image('potsdam_labs' , img_gridinlab)
             writer.close()
-            print('line 841' , torch.argmax(outputs,dim=1).shape)
+            # print('line 841' , torch.argmax(outputs,dim=1).shape)
             
             print(torch.sum(ous3==ls3), ls3.nelement())
             print(torch.sum(ous3==ls3)/ls3.nelement())
@@ -903,7 +903,7 @@ def test(gpu_ind, args, train_net, testloader, criteria, e):
 
 
 
-            tp, fp, fn, tn = smp.metrics.get_stats(output=outputs, target=labels, mode='multiclass', threshold=None, num_classes=6)
+            tp, fp, fn, tn = smp.metrics.get_stats(output=outputs, target=labels, mode='multiclass', threshold=None, num_classes=6, ignore_index=-1)
 
             tp += torch.sum(tp, dim=0)
             fp += torch.sum(fp, dim=0)

@@ -312,17 +312,17 @@ def DataLoader(args):
         
 
         train_dataset = Mydataset(pipeline = train_pipeline, img_dir=IMG_TRAIN_PATH, ann_dir=LAB_TRAIN_PATH,)    
-        print(type(train_dataset))
+        print('dataset' , type(train_dataset))
         train_dataset.load_annotations(img_dir=IMG_TRAIN_PATH, img_suffix='png', seg_map_suffix='png',  ann_dir=LAB_TRAIN_PATH,
                             split=None,)
-        print(type(train_dataset))
-
+        print('dataset' , type(train_dataset))
+        
 
 
         trainloader = torch.utils.data.DataLoader(train_dataset,  batch_size=8,  shuffle=True,
-                                                        drop_last = True, num_workers=args.num_workers
+                                                        drop_last = True, num_workers=args.num_worker
                                                         )
-
+        print('dataloader', type(trainloader))
         # <class 'dataloader.ImageDatasetP'>
         # <torch.utils.data.dataloader.DataLoader object at 0x7fba2f3df610>
         # will initiate now
@@ -332,7 +332,7 @@ def DataLoader(args):
 
 
         testloader = torch.utils.data.DataLoader(test_dataset,  batch_size=8,  shuffle=False,
-                                                        drop_last = True, num_workers=args.num_workers
+                                                        drop_last = True, num_workers=args.num_worker
                                                         )
         return trainloader,testloader
 
@@ -361,7 +361,7 @@ class Mydataset(CustomDataset):
             reduce_zero_label=True,
     
             **kwargs)
-        
+        self.img_infos = []
         assert self.file_client.exists(self.img_dir)
 
     def load_annotations(self,
@@ -424,11 +424,13 @@ class Mydataset(CustomDataset):
             train_data = self.prepare_test_img(index)
             image = train_data['img'].data
             lab_hr = train_data['gt_semantic_seg'].data
+        return train_data    
         return {"hr": image, 'lab_hr':lab_hr, 'meta': train_data['img_metas']}
 
 
 
-
+    def __len__(self):
+        return len(self.img_infos)
 
 
 
@@ -510,15 +512,20 @@ class ImageDatasetP(Dataset):
         img_hr = self.hr_transform(img_hr)
         
         lab_hr[lab_hr == 0] = 255
+
         lab_hr = lab_hr - 1
         lab_hr[lab_hr == 254] = 255
+        
+        # if (len(np.unique(lab_hr)) )> 5: 
+        #     print(np.unique(lab_hr))
         if self.split == 'train':
+            
             
             #lab_hr = transforms.ToTensor()
             
             # print(lab_hr.shape, np.max(lab_hr), np.min(lab_hr))
             
-            one_hot = torch.nn.functional.one_hot(torch.Tensor(lab_hr).long(), num_classes=7)
+            one_hot = torch.nn.functional.one_hot(torch.Tensor(lab_hr).long(), num_classes=6)
             # if np.min(lab_hr) == 2:
             #     print( 'min', np.min(lab_hr), 'max', np.max(lab_hr), 'uniq', np.unique(lab_hr), 'one hot', one_hot)
             #print('ONE HOT SIZE', one_hot, one_hot.shape)
