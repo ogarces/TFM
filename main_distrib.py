@@ -38,7 +38,7 @@ import csv
 # writer = SummaryWriter("write14/focal/iiwei")
 
 
-writer = SummaryWriter("write14/focal/C6/ExclM")
+# writer = SummaryWriter("write14/focal/C6/ExclM")
 # writer = SummaryWriter("write14/focal/C7/Inc")
 # no writer = SummaryWriter("write14/focal/C6/Excl")
 # writer = SummaryWriter("write14/focal/C6/Inc")
@@ -50,6 +50,9 @@ writer = SummaryWriter("write14/focal/C6/ExclM")
 # writer = SummaryWriter("write14/dice/C7/Inc")
 # writer = SummaryWriter("write14/dice/C6/Excl")
 # writer = SummaryWriter("write14/dice/C6/Inc")
+
+# writer = SummaryWriter("write14/focal/C6NOreduce/Inc")
+writer = SummaryWriter("write14/focal/C6reduce/Inc")
 
 
 

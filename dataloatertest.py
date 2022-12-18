@@ -307,9 +307,9 @@ data_root = '/share/ogarces/PRANC/mmsegmentation/data/potsdam'
 
 
 trainset = Mydataset1(pipeline = train_pipeline, img_dir=img_dir, ann_dir=ann_dir,  split=None)    
-# trainset.load_annotations(img_dir=img_dir, img_suffix='png', seg_map_suffix='png',  ann_dir=ann_dir,
+trainset.load_annotations(img_dir=img_dir, img_suffix='png', seg_map_suffix='png',  ann_dir=ann_dir,
   
-#                         split=None,)
+                        split=None,)
 
 # trainset.reduce_zero_label
 
@@ -317,7 +317,7 @@ trainloader = torch.utils.data.DataLoader(trainset,  batch_size=12,  shuffle=Fal
                                                 drop_last = True, num_workers=2)
  
  
-print(type(trainset))   
+print(type(trainloader))   
 # valset =  Mydataset(pipeline = val_pipeline, img_dir=img_dirv, ann_dir=ann_dirv,) 
 # for i, j in enumerate(trainloader):
 #     print(j)

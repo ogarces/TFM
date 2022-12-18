@@ -230,7 +230,7 @@ def DataLoader(args):
 
 
     
-    if args.task == 'potsdam':
+    if args.task == 'potsdam1':
         IMG_TRAIN_PATH = '/share/ogarces/PRANC/mmsegmentation/data/potsdam/img_dir/train'
         IMG_TEST_PATH = '/share/ogarces/PRANC/mmsegmentation/data/potsdam/img_dir/val'
 
@@ -268,7 +268,7 @@ def DataLoader(args):
         return trainloader,testloader
 
 
-    if args.task == 'potsdam1':
+    if args.task == 'potsdam':
         IMG_TRAIN_PATH = '/share/ogarces/PRANC/mmsegmentation/data/potsdam/img_dir/train'
         IMG_TEST_PATH = '/share/ogarces/PRANC/mmsegmentation/data/potsdam/img_dir/val'
 
@@ -312,17 +312,17 @@ def DataLoader(args):
         
 
         train_dataset = Mydataset(pipeline = train_pipeline, img_dir=IMG_TRAIN_PATH, ann_dir=LAB_TRAIN_PATH,)    
-        print('dataset' , type(train_dataset))
-        train_dataset.load_annotations(img_dir=IMG_TRAIN_PATH, img_suffix='png', seg_map_suffix='png',  ann_dir=LAB_TRAIN_PATH,
-                            split=None,)
-        print('dataset' , type(train_dataset))
+        print('315dataset' , type(train_dataset))
+        # train_dataset.load_annotations(img_dir=IMG_TRAIN_PATH, img_suffix='png', seg_map_suffix='png',  ann_dir=LAB_TRAIN_PATH,
+        #                     split=None,)
+        print('318 dataset' , train_dataset.img_infos)
         
 
 
         trainloader = torch.utils.data.DataLoader(train_dataset,  batch_size=8,  shuffle=True,
                                                         drop_last = True, num_workers=args.num_worker
                                                         )
-        print('dataloader', type(trainloader))
+        print('325dataloader', type(trainloader))
         # <class 'dataloader.ImageDatasetP'>
         # <torch.utils.data.dataloader.DataLoader object at 0x7fba2f3df610>
         # will initiate now
@@ -332,7 +332,7 @@ def DataLoader(args):
 
 
         testloader = torch.utils.data.DataLoader(test_dataset,  batch_size=8,  shuffle=False,
-                                                        drop_last = True, num_workers=args.num_worker
+                                                        drop_last = True, num_workers=args.num_worker, 
                                                         )
         return trainloader,testloader
 
@@ -361,10 +361,10 @@ class Mydataset(CustomDataset):
             reduce_zero_label=True,
     
             **kwargs)
-        self.img_infos = []
+        
         assert self.file_client.exists(self.img_dir)
 
-    def load_annotations(self,
+    def __load_annotations__(self,
                          img_dir,
                          img_suffix,
                          ann_dir,
@@ -381,7 +381,7 @@ class Mydataset(CustomDataset):
                     if ann_dir is not None:
                         ann_name = name 
                         seg_map = ann_name + seg_map_suffix
-                        img_info['ann'] = dict(seg_map=seg_map)
+                        img_info['ann_info'] = dict(seg_map=seg_map)
                     img_infos.append(img_info)
         else:
             for img in mmcv.scandir(img_dir, img_suffix, recursive=True):
@@ -390,19 +390,15 @@ class Mydataset(CustomDataset):
                     seg_img = img
                     seg_map = seg_img.replace(
                         img_suffix,  seg_map_suffix)
-                    img_info['ann'] = dict(seg_map=seg_map)
+                    img_info['ann_info'] = dict(seg_map=seg_map)
                 img_infos.append(img_info)
         return img_infos        
                 
     def __getitem__(self, index):
-        
 
-        # if img.mode != 'RGB':
-        #     img = img.convert('RGB')
-        
-        # print(train_data.keys())
         
         if 'train' in self.img_dir:
+            self.prepare_train_img(index)
             train_data = self.prepare_train_img(index)
             image = train_data['img'].data
             mask = train_data['gt_semantic_seg'].data
@@ -424,15 +420,17 @@ class Mydataset(CustomDataset):
             train_data = self.prepare_test_img(index)
             image = train_data['img'].data
             lab_hr = train_data['gt_semantic_seg'].data
-        return train_data    
-        return {"hr": image, 'lab_hr':lab_hr, 'meta': train_data['img_metas']}
-
+        # return train_data    
+        return {"hr": torch.Tensor(image), 'lab_hr':torch.Tensor(lab_hr), 'meta': train_data['img_metas'].data}
 
 
     def __len__(self):
+        """Total number of samples of data."""
         return len(self.img_infos)
 
 
+
+   
 
 
 
@@ -511,27 +509,26 @@ class ImageDatasetP(Dataset):
         lab_hr = transformed['mask']
         img_hr = self.hr_transform(img_hr)
         
-        lab_hr[lab_hr == 0] = 255
+        # lab_hr[lab_hr == 0] = 255
 
-        lab_hr = lab_hr - 1
-        lab_hr[lab_hr == 254] = 255
-        
-        # if (len(np.unique(lab_hr)) )> 5: 
-        #     print(np.unique(lab_hr))
+    
+        lab_hr[lab_hr == 2] = 0
+        lab_hr[lab_hr == 3] = 2
+        lab_hr[lab_hr == 4] = 3
+        lab_hr[lab_hr == 5] = 4
+        lab_hr[lab_hr == 6] = 5
+        # lab_hr = lab_hr - 1
+     
+        if np.max(lab_hr) >5 or np.min(lab_hr) < 0:
+            print(np.unique(lab_hr))
         if self.split == 'train':
-            
-            
-            #lab_hr = transforms.ToTensor()
-            
-            # print(lab_hr.shape, np.max(lab_hr), np.min(lab_hr))
+
             
             one_hot = torch.nn.functional.one_hot(torch.Tensor(lab_hr).long(), num_classes=6)
-            # if np.min(lab_hr) == 2:
-            #     print( 'min', np.min(lab_hr), 'max', np.max(lab_hr), 'uniq', np.unique(lab_hr), 'one hot', one_hot)
-            #print('ONE HOT SIZE', one_hot, one_hot.shape)
+
             lab_hr = np.transpose(torch.squeeze(one_hot), (2,0,1))
-            #print(one_hot.shape, img_hr.shape)
-            # print(np.unique(torch.argmax(one_hot, dim=1)))
+
+            lab_hr = torch.Tensor(lab_hr)
 
         return {"hr": img_hr, 'lab_hr':lab_hr}
         
