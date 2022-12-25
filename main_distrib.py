@@ -4,62 +4,50 @@ import torch.nn as nn
 from watchdog import WatchDog
 import torch.distributed as dist
 from dataloader import DataLoader
-import torch.multiprocessing as mp
+import torch.multiprocessing as mpgather_all
 from arguments import ArgumentParser
 from modelfactory import ModelFactory
 from torch.nn.parallel import DistributedDataParallel as DDP
 from utils import *
 from utils import get_optimizer, get_scheduler
 import csv
+import torch.multiprocessing as mp
 
-# writer = SummaryWriter("runs/potsdam/normal/unet")
-# writer = SummaryWriter("runs/potsdam/pranc/unet")
-
-# writer = SummaryWriter("runs/potsdam/normal/deeplab")
-#writer = SummaryWriter("runs/potsdam/pranc/deeplab")
-
-# writer = SummaryWriter("runs1/potsdam/normal/lraspp")
-#writer = SummaryWriter("runs/potsdam/pranc/lraspp")
-
-#writer = SummaryWriter("runs/isaid/normal/unet")
-#writer = SummaryWriter("runs/isaid/pranc/unet")
-
-#writer = SummaryWriter("runs/isaid/normal/deeplab")
-#writer = SummaryWriter("runs/isaid/pranc/deeplab")
-
-#writer = SummaryWriter("runs/isaid/normal/lraspp")
-#writer = SummaryWriter("runs/isaid/pranc/lraspp")
+# writer = SummaryWriter("experiments/DLV3Plr01wd00005focal_Pranc1_100A_0")
+# writer = SummaryWriter("experiments/DLV3Plr01wd00005focal_Pranc1_25A_0") # b 14 #DONE
+# writer = SummaryWriter("experiments/DLV3Plr01wd00005focal_Pranc1_10A_0")
+# writer = SummaryWriter("experiments/DLV3Plr01wd00005focal_Pranc1_5A_0") # natcj 20/10
 
 
+# writer = SummaryWriter("experiments/DLV3Plr01wd00005focal_Pranc1_100A_1")
+# writer = SummaryWriter("experiments/DLV3Plr01wd00005focal_Pranc1_25A_1") # b 14 #DONE
+# writer = SummaryWriter("experiments/DLV3Plr01wd00005focal_Pranc1_10A_1")
+writer = SummaryWriter("experiments/DLV3Plr01wd00005focal_Pranc1_5A_1")
 
-# writer = SummaryWriter("runs/potsdam/normal/deeplabv3Plus")
-# writer = SummaryWriter("runs/potsdam/pranc/unet")
-# writer = SummaryWriter("write14/focal/ii")
-# writer = SummaryWriter("write14/focal/iiwei")
+
+# writer = SummaryWriter("experiments/DLV3Plr01wd00005focal_Pranc1_100A_2")
+# writer = SummaryWriter("experiments/DLV3Plr01wd00005focal_Pranc1_25A_2") # b 14 #DONE
+
+# writer = SummaryWriter("experiments/DLV3Plr01wd00005focal_Pranc1_10A_2")
+# writer = SummaryWriter("experiments/DLV3Plr01wd00005focal_Pranc1_5A_2")
+
+# writer = SummaryWriter("experiments/DLV3Plr01wd00005focal_Pranc1_100A_3")
+# writer = SummaryWriter("experiments/DLV3Plr01wd00005focal_Pranc1_25A_3") # b 14
+# writer = SummaryWriter("experiments/DLV3Plr01wd00005focal_Pranc1_10A_3")
+# writer = SummaryWriter("experiments/DLV3Plr01wd00005focal_Pranc1_5A_3")
 
 
-# writer = SummaryWriter("write14/focal/C6/ExclM")
-# writer = SummaryWriter("write14/focal/C7/Inc")
-# no writer = SummaryWriter("write14/focal/C6/Excl")
-# writer = SummaryWriter("write14/focal/C6/Inc")
-# writer = SummaryWriter("write14/focal/C7/Excl")
-# writer = SummaryWriter("write14/focal/C7/Inc")
-# no writer = SummaryWriter("write14/focal/C6/Excl")
-
-# writer = SummaryWriter("write14/dice/C7/Excl")
-# writer = SummaryWriter("write14/dice/C7/Inc")
-# writer = SummaryWriter("write14/dice/C6/Excl")
-# writer = SummaryWriter("write14/dice/C6/Inc")
-
-# writer = SummaryWriter("write14/focal/C6NOreduce/Inc")
-writer = SummaryWriter("write14/focal/C6reduce/Inc")
+# writer = SummaryWriter("experiments/DLV3Plr01wd00005focal_Pranc1_100A_4")
+# writer = SummaryWriter("experiments/DLV3Plr01wd00005focal_Pranc1_25A_4") # b 14
+# writer = SummaryWriter("experiments/DLV3Plr01wd00005focal_Pranc1_10A_4")
+# writer = SummaryWriter("experiments/DLV3Plr01wd00005focal_Pranc1_5A_4")
 
 
 
 
 def gather_all_test(gpu_ind, args, train_net, testloader, criteria, e):
     print("gather all test started")
-    c, t, tp, tn, fp, fn = test(gpu_ind, args, train_net, testloader, criteria, e)
+    c, t, tp, tn, fp, fn, val_mets = test(gpu_ind, args, train_net, testloader, criteria, e)
     total = torch.tensor([c, t], dtype=torch.float32, device=gpu_ind)
     dist.all_reduce(total, dist.ReduceOp.SUM, async_op=False)
     cnt, tot = total.tolist()
@@ -71,7 +59,14 @@ def gather_all_test(gpu_ind, args, train_net, testloader, criteria, e):
     print("line 27 main_distrib", iou_score, f1_score, f2_score, accuracy, recall)
     print("gather all test ended")
     #print(tp)
-    return (cnt / tot) * 100, iou_score, f1_score, f2_score, accuracy, recall
+    data = {'c':c, 't':t, 'tp': tp,  'tn':tn, 'fp':fp, 'fn':fn}
+
+    
+    
+    
+
+
+    return (cnt / tot) * 100, iou_score, f1_score, f2_score, accuracy, recall, data, val_mets
     
 
 
@@ -123,12 +118,7 @@ def main_worker( gpu_ind, args, shared_alpha):
                 
                 
                 
-    max_acc = 0
-    max_iou = 0
-    maxF1 = 0
-    maxF2 = 0
-    maxacc = 0
-    max_rec = 0
+
     torch.cuda.set_device(gpu_ind)
     train_net = DDP(train_net, device_ids=[gpu_ind])
 
@@ -139,6 +129,16 @@ def main_worker( gpu_ind, args, shared_alpha):
             
     # normal training, not to be confused si pranc training
     if args.method == 'normal':
+        max_acc = 0
+        max_iou = 0
+        maxF1 = 0
+        maxF2 = 0
+        maxacc = 0
+        max_rec = 0
+        val_mets = []
+        train_mets = []
+        f1s = []
+        ious = []
         print("normal train")
         if args.resume is not None:
             print("normal train, resuming")
@@ -158,7 +158,8 @@ def main_worker( gpu_ind, args, shared_alpha):
             if e % 1 == 0:
                 test_watchdog.start()
                 print('will calculate accuracy in gather all tests')
-                acc, iou_score, f1_score, f2_score, accuracy, recall = gather_all_test(gpu_ind, args, train_net, testloader, criteria, e)
+                acc, iou_score, f1_score, f2_score, accuracy, recall,data, val_met = gather_all_test(gpu_ind, args, train_net, testloader, criteria, e)
+                val_mets.append(val_met)
                 writer.add_scalar('iou', iou_score, e )
                 writer.add_scalar('f1', f1_score, e )
                 test_watchdog.stop()
@@ -174,13 +175,26 @@ def main_worker( gpu_ind, args, shared_alpha):
                     
                     
 
-
-                    if f1_score > maxF1:
+                    if not args.task == 'prancM':
+                        if f1_score > maxF1 :
                             maxF1 = f1_score
+                            save_model(gpu_ind, args, train_net) 
+                            
+                        if f2_score > maxF2:
+                            maxF2 = f2_score
+                            print('new max iou, printing iou, f1, f2, accuracy', max_iou, f1_score, f2_score, accuracy)
 
+                        if iou_score > max_iou:
+                            max_iou = iou_score
+                            print('new max iou, printing iou, f1, f2, accuracy', max_iou, f1_score, f2_score, accuracy)
+                                
+                                   
+                    else:
+                        if acc > max_acc:
+                            max_acc = acc
+                            save_model(gpu_ind, args, train_net)    
                             
-                            save_model(gpu_ind, args, train_net)            
-                            
+
                     # if args.task == 'iSAID' and iou_score > max_iou:
                     #     max_iou = iou_score
                     #     save_model(gpu_ind, args, train_net)
@@ -189,8 +203,11 @@ def main_worker( gpu_ind, args, shared_alpha):
                     #         max_acc = acc
                     #         save_model(gpu_ind, args, train_net)
                     
-                        
-                scheduler.step()
+                if args.scheduler == 'plateau':
+                    scheduler.step(f1_score)
+                else:                 
+                    scheduler.step()
+
 
         if gpu_ind == 0: 
             if args.task == 'potsdam':
@@ -202,6 +219,16 @@ def main_worker( gpu_ind, args, shared_alpha):
 
     if args.method == 'pranc':
         print('pranc training')
+        max_acc = 0
+        max_iou = 0
+        maxF1 = 0
+        maxF2 = 0
+        maxacc = 0
+        max_rec = 0
+        val_mets = []
+        train_mets = []
+        f1s = []
+        ious = []
         # pranc_init calls init_alpha with the data from training or zeroes, 
         # calls fill_basis_mat that sets a seed and then initializes weights for each model, each module
         # pranc_init uses no_grad
@@ -240,11 +267,19 @@ def main_worker( gpu_ind, args, shared_alpha):
         acc, iou_score, f1_score, f2_score, accuracy, recall = 0, 0, 0, 0, 0, 0
         print("main distrib gather all test ended")
         for e in range(args.epoch):
-            pranc_train_single_epoch(gpu_ind, args, e, basis_mat, train_net, train_net_shape_vec, alpha, trainloader, criteria, alpha_optimizer, net_optimizer, batchnorm_optimizer)    
+            train_met = pranc_train_single_epoch(gpu_ind, args, e, basis_mat, train_net, train_net_shape_vec, alpha, trainloader, criteria, alpha_optimizer, net_optimizer, batchnorm_optimizer)    
+            train_mets.append(train_met)
             if e % 1 == 0 :
                 test_watchdog.start()
-                print('line 198 main distrib start gather all test from pranc train')
-                acc, iou_score, f1_score, f2_score, accuracy, recall = gather_all_test(gpu_ind, args, train_net, testloader, criteria, e)
+                # print('line 198 main distrib start gather all test from pranc train')
+                
+                
+                acc, iou_score, f1_score, f2_score, accuracy, recall, data , val_met = gather_all_test(gpu_ind, args, train_net, testloader, criteria, e)
+
+                f1s.append(f1_score)
+                ious.append(iou_score)
+                val_mets.append(val_met)
+                
                 writer.add_scalar('iou', iou_score, e )
                 writer.add_scalar('f1', f1_score, e )
                 print('end gather all test from pranc train')
@@ -260,19 +295,103 @@ def main_worker( gpu_ind, args, shared_alpha):
                         "\trecall:", recall, "\tBest recall:", max_rec,
                         "\tTime:", test_watchdog.get_time_in_sec(), 'seconds')
                     
-                    if f1_score > maxF1:
-                        maxF1 = f1_score
-                        print("216 main distrib calculated fscore, saving model")
-                        save_model(gpu_ind, args, train_net)      
-                        print('217 main distrib, model saved') 
-                        save_signature(gpu_ind, args, alpha, train_net, shared_alpha)  
-                        print('219 main distrib signature saved')
-                        max_acc = acc
-                        print("221 utils saved model")
-                             
-            print('223 main distrib will step alpha scheduler')
+                    if args.task == 'potsdam':
+                        if f1_score > maxF1:
+                            maxF1 = f1_score
+                            print("216 main distrib calculated fscore, saving model")
+                            save_model(gpu_ind, args, train_net)      
+                            print('217 main distrib, model saved') 
+                            save_signature(gpu_ind, args, alpha, train_net, shared_alpha)  
+                            print('219 main distrib signature saved')
+                            max_acc = acc
+                            print("221 utils saved model")
+                            
+                            # pickle.dump((args, e, data), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_100A_0.pkl', 'ab'))
+                            # pickle.dump((args, e, data), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_25A_0.pkl', 'ab')) #DONE
+                            # pickle.dump((args, e, data), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_10A_0.pkl', 'ab'))
+                            # pickle.dump((args, e, data), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_5A_0.pkl', 'ab'))
+
+
+                            # pickle.dump((args, e, data), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_100A_1.pkl', 'ab'))
+                            # pickle.dump((args, e, data), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_25A_1.pkl', 'ab')) #DONE
+                            # pickle.dump((args, e, data), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_10A_1.pkl', 'ab'))
+                            pickle.dump((args, e, data), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_5A_1.pkl', 'ab'))
+                            
+                            # pickle.dump((args, e, data), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_100A_2.pkl', 'ab'))
+                            # pickle.dump((args, e, data), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_25A_2.pkl', 'ab')) #DONE
+                            # pickle.dump((args, e, data), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_10A_2.pkl', 'ab'))
+                            # pickle.dump((args, e, data), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_5A_2.pkl', 'ab'))
+                            
+                            
+                            # pickle.dump((args, e, data), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_100A_3.pkl', 'ab'))
+                            # pickle.dump((args, e, data), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_25A_3.pkl', 'ab'))
+                            # pickle.dump((args, e, data), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_10A_3.pkl', 'ab'))
+                            # pickle.dump((args, e, data), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_5A_3.pkl', 'ab'))  
+                            
+                            
+                            # pickle.dump((args, e, data), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_100A_4.pkl', 'ab'))
+                            # pickle.dump((args, e, data), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_25A_4.pkl', 'ab'))
+                            # pickle.dump((args, e, data), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_10A_4.pkl', 'ab'))
+                            # pickle.dump((args, e, data), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_5A_4.pkl', 'ab'))
+                            
+                        if f2_score > maxF2:
+                            maxF2 = f2_score
+                            print('new max iou, printing iou, f1, f2, accuracy', max_iou, f1_score, f2_score, accuracy)
+
+                        if iou_score > max_iou:
+                            max_iou = iou_score
+                            print('new max iou, printing iou, f1, f2, accuracy', max_iou, f1_score, f2_score, accuracy)
+
+                        
+                   
+                    else:
+                        if acc > max_acc:
+                            max_acc = acc
+                            save_model(gpu_ind, args, train_net)    
+                            save_signature(gpu_ind, args, alpha, train_net, shared_alpha)  
+
+
+                    # if args.task == 'iSAID' and iou_score > max_iou:
+                    #     max_iou = iou_score
+                    #     save_model(gpu_ind, args, train_net)
+                    # else: 
+                    #     if acc > max_acc:
+                    #         max_acc = acc
+                    #         save_model(gpu_ind, args, train_net)
+
+            # print('VVV', train_mets, ious, f1s )  
+            # pickle.dump((args, e, train_mets, val_mets), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_25A_0_metrics.pkl', 'ab')) #DONE
+            # pickle.dump((args, e, train_mets, val_mets), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_20A_0_metrics.pkl', 'ab'))
+            # pickle.dump((args, e, train_mets, val_mets), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_15A_0_metrics.pkl', 'ab'))
+            # pickle.dump((args, e, train_mets, val_mets), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_10A_0_metrics.pkl', 'ab'))
+            # pickle.dump((args, e, train_mets, val_mets), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_5A_0_metrics.pkl', 'ab'))
+
+            # pickle.dump((args, e, train_mets, val_mets), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_25A_1_metrics.pkl', 'ab')) #DONE
+            # pickle.dump((args, e, train_mets, val_mets), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_20A_1_metrics.pkl', 'ab'))
+            # pickle.dump((args, e, train_mets, val_mets), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_15A_1_metrics.pkl', 'ab'))
+            # pickle.dump((args, e, train_mets, val_mets), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_10A_1_metrics.pkl', 'ab'))
+            # pickle.dump((args, e, train_mets, val_mets), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_5A_1_metrics.pkl', 'ab'))
+  
+            # pickle.dump((args, e, train_mets, val_mets), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_25A_2_metrics.pkl', 'ab')) #DONE
+            # pickle.dump((args, e, train_mets, val_mets), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_20A_2_metrics.pkl', 'ab'))
+            # pickle.dump((args, e, train_mets, val_mets), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_15A_2_metrics.pkl', 'ab'))
+            # pickle.dump((args, e, train_mets, val_mets), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_10A_2_metrics.pkl', 'ab'))
+            # pickle.dump((args, e, train_mets, val_mets), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_5A_2_metrics.pkl', 'ab'))
+  
+            # pickle.dump((args, e, train_mets, val_mets), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_25A_3_metrics.pkl', 'ab'))
+            # pickle.dump((args, e, train_mets, val_mets), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_20A_3_metrics.pkl', 'ab'))
+            # pickle.dump((args, e, train_mets, val_mets), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_15A_3_metrics.pkl', 'ab'))
+            # pickle.dump((args, e, train_mets, val_mets), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_10A_3_metrics.pkl', 'ab'))
+            # pickle.dump((args, e, train_mets, val_mets), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_5A_3_metrics.pkl', 'ab'))
+            
+            # pickle.dump((args, e, train_mets, val_mets), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_25A_4_metrics.pkl', 'ab'))
+            # pickle.dump((args, e, train_mets, val_mets), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_20A_4_metrics.pkl', 'ab'))
+            # pickle.dump((args, e, train_mets, val_mets), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_15A_4_metrics.pkl', 'ab'))
+            # pickle.dump((args, e, train_mets, val_mets), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_10A_4_metrics.pkl', 'ab'))
+            # pickle.dump((args, e, train_mets, val_mets), open('/share/ogarces/PRANC/configs/stats/DLV3Plr01wd00005focal_Pranc1_5A_4_metrics.pkl', 'ab'))            
+            
+            
             alpha_scheduler.step()
-            print('225 main distrib see if batchnorm is not none')
             if batchnorm_scheduler is not None:
                 batchnorm_scheduler.step()
         print("FINAL TEST RESULT:\tAcc:", max_acc)
